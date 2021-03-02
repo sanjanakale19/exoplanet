@@ -1,10 +1,15 @@
 import javax.swing.*;
+import javax.swing.border.BevelBorder;
+import javax.swing.border.Border;
+import javax.swing.border.SoftBevelBorder;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
+import java.io.File;
 
 public class UserInterface {
 
@@ -12,13 +17,19 @@ public class UserInterface {
     private int campaignNum;
     private ArrayList<DataObj> data;
     private int dataNum;
+    private ArrayList<GraphParam> params;
     private boolean isTimeGraph;
     private boolean isGregorian;
+    private boolean lowPassFilter;
     private JPanel chartPanel;
     private JPanel buttonPanel;
+    private JPanel outputPanel;
     private JLabel contentLabel;
+    private JLabel algPane;
     private JScrollPane campaignDataSP;
     private final Container pane;
+    private GraphComplexCurve complexCurve;
+    private boolean run;
     private boolean ranAlg;
     private double accuracy;    //reads from a file that is updated when algorithm tests; value from 0 to 1
 
@@ -63,14 +74,14 @@ public class UserInterface {
     }
 
     void setDataNum(int num) {
-        if (num < data.size()) {
+         if (num >= 0 && num < data.size()) {
             dataNum = num;
             graph();
             namePanel();
-        } else if (num >= data.size()) {
-            setCampaignNum(campaignNum + 1, true);
         } else if (num < 0 && campaignNum > 0) {
             setCampaignNum(campaignNum - 1, false);
+        } else if (num >= data.size()) {
+            setCampaignNum(campaignNum + 1, true);
         }
     }
 
@@ -130,8 +141,12 @@ public class UserInterface {
         GridBagConstraints constraints = new GridBagConstraints();
         try {
             DataObj obj = data.get(dataNum);
-            ArrayList<GraphParam> params = GraphParam.getTable(obj);
-
+            if (isTimeGraph && lowPassFilter) {
+                // params is already assigned to "cleaned" list of data - don't reassign until the graph is changed
+                lowPassFilter = false;
+            } else {
+                params = GraphParam.getTable(obj);
+            }
             if (isTimeGraph) {
                 if (isGregorian) {
                     GraphTimeCurve curve = new GraphTimeCurve("Graph", params);
@@ -140,14 +155,18 @@ public class UserInterface {
                     GraphLineCurve curve = new GraphLineCurve("Graph", params);
                     chartPanel = curve.getPanel();
                 }
+            } else if (lowPassFilter) {
+                complexCurve = complexCurve.lowPassFilter("myFixedGraph", 0.002);
+                chartPanel = complexCurve.getPanel();
+                params = (ArrayList<GraphParam>) GraphComplexCurve.toParamList(FourierTransform.toTime(complexCurve.getParams()), params);
             } else {
                 List<Double> domain = new ArrayList<>();
-                for (double x = 0; x < 3197; x += 1) {
-                    domain.add(x/(3197 * 30));
+                for (double x = 0; x < params.size(); x += 1) {
+                    domain.add(x/(params.size() * 30));
                 }
-                GraphComplexCurve curve =
-                        new GraphComplexCurve("Graph", domain, GraphLineCurve.toComplexList(params));
-                chartPanel = curve.getPanel();
+                complexCurve =
+                        new GraphComplexCurve("Graph", domain, FourierTransform.toFrequency(GraphLineCurve.toComplexList(params)));
+                chartPanel = complexCurve.getPanel();
             }
 
             constraints.fill = GridBagConstraints.BOTH;
@@ -175,14 +194,35 @@ public class UserInterface {
         buttonPanel = new JPanel();
 
         GridBagConstraints constraints = new GridBagConstraints();
-
         JButton button;
+
+        constraints.fill = GridBagConstraints.BOTH;
+        button = new JButton("Run Algorithm");
+        constraints.weightx = 0;
+        constraints.ipadx = 40;
+        constraints.ipady = 15;
+        constraints.gridx = 1;
+        constraints.gridy = 0;
+        constraints.gridwidth = 1;
+        constraints.gridheight = 1;
+        constraints.anchor = GridBagConstraints.PAGE_START;
+        buttonPanel.add(button, constraints);
+
+        button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                run = true;
+                resultPanel();
+            }
+        });
+
+
         constraints.fill = GridBagConstraints.BOTH;
         button = new JButton("To Frequency Domain");
         constraints.weightx = 0;
         constraints.ipadx = 40;
         constraints.ipady = 15;
-        constraints.gridx = 1;
+        constraints.gridx = 2;
         constraints.gridy = 0;
         constraints.gridwidth = 1;
         constraints.gridheight = 1;
@@ -198,17 +238,6 @@ public class UserInterface {
             }
         });
 
-        constraints.fill = GridBagConstraints.BOTH;
-        button = new JButton("Run Algorithm");
-        constraints.weightx = 0;
-        constraints.ipadx = 40;
-        constraints.ipady = 15;
-        constraints.gridx = 2;
-        constraints.gridy = 0;
-        constraints.gridwidth = 1;
-        constraints.gridheight = 1;
-        constraints.anchor = GridBagConstraints.PAGE_START;
-        buttonPanel.add(button, constraints);
 
         constraints.fill = GridBagConstraints.BOTH;
         button = new JButton("Switch Time Domain");
@@ -293,6 +322,8 @@ public class UserInterface {
         constraints.anchor = GridBagConstraints.PAGE_START;
         pane.add(buttonPanel, constraints);
 
+        resultPanel();
+
     }
 // for now has saved buttons and constraints of initializeTime in case u fuk up // nvm u didn't fuk up // nvm u did
     private void initializeFreq() {
@@ -328,12 +359,32 @@ public class UserInterface {
         });
 
         constraints.fill = GridBagConstraints.BOTH;
+        button = new JButton("Apply Low-Pass Filter");
+        constraints.weightx = 0;
+        constraints.ipadx = 40;
+        constraints.ipady = 15;
+        constraints.gridx = 2;
+        constraints.gridy = 0;
+        constraints.gridwidth = 1;
+        constraints.gridheight = 1;
+        constraints.anchor = GridBagConstraints.PAGE_START;
+        buttonPanel.add(button, constraints);
+
+        button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                lowPassFilter = true;
+                graph();
+            }
+        });
+
+        constraints.fill = GridBagConstraints.BOTH;
         button = new JButton("<— Previous Graph");
         constraints.weightx = 1;
         constraints.weighty = 0;
         constraints.ipadx = 40;
         constraints.ipady = 15;
-        constraints.gridx = 5;
+        constraints.gridx = 3;
         constraints.gridy = 0;
         constraints.gridwidth = 1;
         constraints.gridheight = 1;
@@ -353,7 +404,7 @@ public class UserInterface {
         constraints.weighty = 0;
         constraints.ipadx = 50;
         constraints.ipady = 15;
-        constraints.gridx = 6;
+        constraints.gridx = 4;
         constraints.gridy = 0;
         constraints.gridwidth = 1;
         constraints.gridheight = 1;
@@ -379,9 +430,49 @@ public class UserInterface {
         pane.add(buttonPanel, constraints);
     }
 
-    private void resultPanel() {
-        if (!ranAlg) {
+    private double runAlg() {
+        MLAlgorithm alg = new MLAlgorithm();
+        return 0;
+    }
 
+    private void resultPanel() {
+
+        double prob = 0;
+        if (!ranAlg) {
+            if (run) {
+                prob = runAlg();
+                run = false;
+                ranAlg = true;
+            }
+            String text = "<html><div style='text-align:center'><br><br>The probability/confidence <br><br>that the graph representing<br><br>the star contains at least<br><br>1 exoplanet = " + ((prob == 0) ? "-" : prob * 100) + "%</div><html>";
+                                                                //  <div style='color:purple'>
+            if (outputPanel == null) {  // assume that if outputPanel is null, so is algPane
+                outputPanel = new JPanel();
+                outputPanel.setBackground(Color.WHITE);
+                outputPanel.setBorder(new SoftBevelBorder(0, Color.LIGHT_GRAY, Color.LIGHT_GRAY));
+                GridBagConstraints constraints = new GridBagConstraints();
+                constraints.fill = GridBagConstraints.BOTH;
+
+                algPane = new JLabel();
+                algPane.setText(text);
+
+                constraints.weightx = 0;
+                constraints.weighty = 1;
+                constraints.ipadx = 40;
+                constraints.ipady = 0;
+                constraints.gridx = 7;
+                constraints.gridy = 1;
+                constraints.gridwidth = 1;
+                constraints.gridheight = 3;
+                constraints.anchor = GridBagConstraints.PAGE_START;
+                constraints.insets = new Insets(20, 0, 10, 10);
+                outputPanel.add(algPane);   //, constraints);
+                pane.add(outputPanel, constraints);
+
+            } else {
+                algPane.setText(text);
+            }
+            ranAlg = true;
         }
     }
 
@@ -391,11 +482,9 @@ public class UserInterface {
             GridBagConstraints constraints = new GridBagConstraints();
             constraints.fill = GridBagConstraints.BOTH;
 
-            contentLabel =
-                    new JLabel(text);
+            contentLabel = new JLabel(text);
             contentLabel.setVerticalAlignment(JLabel.TOP);
             contentLabel.setHorizontalAlignment(JLabel.CENTER);
-            contentLabel.setBackground(Color.CYAN);
             constraints.weightx = 0;
             constraints.weighty = 0;
             constraints.ipadx = 80;
@@ -405,7 +494,7 @@ public class UserInterface {
             constraints.gridwidth = 1;
             constraints.gridheight = 2;
             constraints.anchor = GridBagConstraints.PAGE_START;
-            constraints.insets = new Insets(20, 0, 10, 0);
+            constraints.insets = new Insets(10, 0, 10, 0);
             pane.add(contentLabel, constraints);
         } else {
             contentLabel.setText(text);
@@ -532,9 +621,5 @@ public class UserInterface {
         constraints.insets.left = 10;
         constraints.insets.top = 10;
         pane.add(label, constraints);
-    }
-
-    private void campaignButtons() {
-
     }
 }

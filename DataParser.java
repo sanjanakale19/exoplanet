@@ -118,7 +118,7 @@ public class DataParser {
 //        GraphLineCurve curve2 = new GraphLineCurve("mySinusoid", sinusoid);
 //        curve2.graph();
 //
-//        GraphComplexCurve freqCurve1 = GraphLineCurve.timeToFreqGraph(curve2, domain, "myFreqCurve");
+//        GraphComplexCurve freqCurve1 = new GraphComplexCurve("myFreqCurve", domain, GraphLineCurve.toComplexList(curve2.getParams()));
 //        freqCurve1.graph();
 //
 //        GraphLineCurve origCurve1 = GraphComplexCurve.freqToLineGraph(freqCurve1, curve2,"myOriginalCurve");
@@ -174,8 +174,10 @@ public class DataParser {
         GraphLineCurve fixedExo = GraphComplexCurve.freqToLineGraph(freqCurve, exo,"CORRECTED - Confirmed Exoplanet");
         fixedExo.graph();
 
-        GraphLineCurve curve = new GraphLineCurve("myGraph1", GraphParam.getTableFromLink("http://archive.stsci.edu/missions/hlsp/k2sff/c05/211300000/11380/hlsp_k2sff_k2_lightcurve_211311380-c05_kepler_v1_llc-default-aper.txt"));
-        curve.graph();
+//        GraphLineCurve curve = new GraphLineCurve("myGraph1", GraphParam.getTableFromLink("http://archive.stsci.edu/missions/hlsp/k2sff/c05/211300000/11380/hlsp_k2sff_k2_lightcurve_211311380-c05_kepler_v1_llc-default-aper.txt"));
+//        curve.graph();
+//        GraphComplexCurve freqCurve = GraphLineCurve.timeToFreqGraph(curve, domain, "");
+//        freqCurve.graph();
     }
 
 

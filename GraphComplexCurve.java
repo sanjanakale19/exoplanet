@@ -36,6 +36,8 @@ class GraphComplexCurve extends ApplicationFrame {
         return chartPanel;
     }
 
+
+
     GraphComplexCurve(String title, List<Double> domain, List<ComplexNumber> params) {
         super(title);
         this.domain = domain;
@@ -63,8 +65,8 @@ class GraphComplexCurve extends ApplicationFrame {
         return new GraphLineCurve(myTitle, toParamList(FourierTransform.toTime(curve.getParams()), origGraph.getParams()));
     } // values aren't stored from before but now they are but i still hate this code
 
-    private static List<GraphParam> toParamList(List<ComplexNumber> list, List<GraphParam> origList) {
-        List<GraphParam> nums = new ArrayList<>();
+    static List<GraphParam> toParamList(List<ComplexNumber> list, List<GraphParam> origList) {
+        ArrayList<GraphParam> nums = new ArrayList<>();
         for (int i = 0; i < list.size(); i++) {
             nums.add(new GraphParam(origList.get(i).getBJD(), list.get(i).getReal()));
         }
@@ -124,7 +126,7 @@ class GraphComplexCurve extends ApplicationFrame {
         return dataSet;
     }
 
-    private List<ComplexNumber> getParams() {
+    List<ComplexNumber> getParams() {
         return params;
     }
 
